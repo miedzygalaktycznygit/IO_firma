@@ -18,10 +18,6 @@ public class TaskManagementService {
         this.employeeRepository = employeeRepository;
     }
 
-    public Employee addEmployee(Employee employee) {
-        return employeeRepository.save(employee);
-    }
-
     public Task assignTaskToTailor(Long taskId, Long tailorId) {
         Task task = taskRepository.findById(taskId).orElseThrow();
         Employee tailor = employeeRepository.findById(tailorId).orElseThrow();
@@ -29,7 +25,15 @@ public class TaskManagementService {
         return taskRepository.save(task);
     }
 
-    public Task createTask(Task task) {
+    public Task createTask(Task task, Long designerId, Long tailorId) {
+        if (designerId != null) {
+            Employee designer = employeeRepository.findById(designerId).orElseThrow();
+            task.setDesigner(designer);
+        }
+        if (tailorId != null) {
+            Employee tailor = employeeRepository.findById(tailorId).orElseThrow();
+            task.setTailor(tailor);
+        }
         task.setStatus("NOWE");
         return taskRepository.save(task);
     }
@@ -49,9 +53,11 @@ public class TaskManagementService {
         taskRepository.deleteById(taskId);
     }
 
-    public Task acceptTask(Long taskId) {
+    public Task decideOnTask(Long taskId, boolean accept, String reason) {
         Task task = taskRepository.findById(taskId).orElseThrow();
-        task.setStatus("W_REALIZACJI");
+        task.setStatus(accept ? "W_REALIZACJI" : "ODRZUCONO");
+        task.setDecisionReason(reason);
+        task.setDecisionDate(java.time.LocalDateTime.now());
         return taskRepository.save(task);
     }
 }

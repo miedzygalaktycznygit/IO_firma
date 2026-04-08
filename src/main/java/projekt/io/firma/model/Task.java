@@ -2,6 +2,7 @@ package projekt.io.firma.model;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import java.time.LocalDateTime;
 
 @Entity
 @Data
@@ -22,4 +23,7 @@ public class Task {
     @ManyToOne
     @JoinColumn(name = "tailor_id")
     private Employee tailor;
+
+    private String decisionReason;
+    private LocalDateTime decisionDate;
 }
