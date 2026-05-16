@@ -54,4 +54,9 @@ public class TaskManagementService {
         task.setStatus("W_REALIZACJI");
         return taskRepository.save(task);
     }
+
+    public List<Employee> getAllEmployees() {
+        return employeeRepository.findAll();
+    }
+
 }
