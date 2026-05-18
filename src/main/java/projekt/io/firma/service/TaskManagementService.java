@@ -30,7 +30,7 @@ public class TaskManagementService {
     }
 
     public Task createTask(Task task) {
-        task.setStatus("NOWE");
+        task.updateState();
         return taskRepository.save(task);
     }
 
@@ -51,7 +51,13 @@ public class TaskManagementService {
 
     public Task acceptTask(Long taskId) {
         Task task = taskRepository.findById(taskId).orElseThrow();
-        task.setStatus("W_REALIZACJI");
+        task.accept();
+        return taskRepository.save(task);
+    }
+
+    public Task completeTask(Long taskId) {
+        Task task = taskRepository.findById(taskId).orElseThrow();
+        task.complete();
         return taskRepository.save(task);
     }
 

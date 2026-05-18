@@ -19,9 +19,8 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.ComboBox;
 import projekt.io.firma.model.Employee;
 import projekt.io.firma.model.Role;
-
-
-
+import projekt.io.firma.model.builder.*;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class JavaFxApp extends Application {
 
@@ -63,7 +62,6 @@ public class JavaFxApp extends Application {
 
         return new Scene(layout, 500, 400);
     }
-
 
     private Scene createAdminScene() {
         TaskManagementService taskService = springContext.getBean(TaskManagementService.class);
@@ -125,7 +123,7 @@ public class JavaFxApp extends Application {
         odswiezDane.run();
 
         btnZatrudnij.setOnAction(e -> {
-            if(!txtImię.getText().isEmpty() && roleBox.getValue() != null) {
+            if (!txtImię.getText().isEmpty() && roleBox.getValue() != null) {
                 Employee emp = new Employee();
                 emp.setFirstName(txtImię.getText());
                 emp.setLastName(txtNazwisko.getText());
@@ -160,12 +158,10 @@ public class JavaFxApp extends Application {
                 titleLabel,
                 new Label("--- 1. NOWY PRACOWNIK ---"), dodawanieBox,
                 new Label("--- 2. PRZYPISYWANIE ZADAŃ (Zaznacz obiekt w 1 i w 2 liście) ---"),
-                taskListView, empListView, btnPrzypisz, btnBack
-        );
+                taskListView, empListView, btnPrzypisz, btnBack);
 
         return new Scene(layout, 600, 600);
     }
-
 
     private Scene createDesignerScene() {
         TaskManagementService taskService = springContext.getBean(TaskManagementService.class);
@@ -182,7 +178,11 @@ public class JavaFxApp extends Application {
                 if (empty || task == null) {
                     setText(null);
                 } else {
-                    setText("Zadanie #" + task.getId() + " | " + task.getTitle() + " | Status: " + task.getStatus());
+                    String prodInfo = (task.getProdukt() != null)
+                            ? " | Szczegóły: " + task.getProdukt().toString().replace("\n", " | ")
+                            : "";
+                    setText("Zadanie #" + task.getId() + " | " + task.getTitle() + " | Status: " + task.getStatus()
+                            + prodInfo);
                 }
             }
         });
@@ -199,17 +199,47 @@ public class JavaFxApp extends Application {
         TextField txtDescription = new TextField();
         txtDescription.setPromptText("Wpisz opis zadania...");
 
+        AtomicReference<Produkt> currentProdukt = new AtomicReference<>();
+        KierownikProdukcji kierownik = new KierownikProdukcji(new ProduktBuilder("Z szablonu"));
+
+        Button btnBasic = new Button("Generuj: Bluza Basic");
+        btnBasic.setOnAction(e -> {
+            Produkt p = kierownik.przygotujBluezeBasic();
+            currentProdukt.set(p);
+            txtTitle.setText("Bluza Basic");
+            txtDescription.setText(p.toString().replace("\n", " | "));
+        });
+
+        Button btnPremium = new Button("Generuj: Kurtka Premium");
+        btnPremium.setOnAction(e -> {
+            ProjektGraficzny logo = new ProjektGraficzny();
+            logo.setNazwa("Logo Premium");
+            logo.setUrlZdjecia("/img/logo.png");
+            Produkt p = kierownik.przygotujKurtkePremium(logo);
+            currentProdukt.set(p);
+            txtTitle.setText("Kurtka Premium");
+            txtDescription.setText(p.toString().replace("\n", " | "));
+        });
+
+        HBox builderLayout = new HBox(15);
+        builderLayout.setAlignment(Pos.CENTER);
+        builderLayout.getChildren().addAll(btnBasic, btnPremium);
+
         Button btnAdd = new Button("Dodaj nowe zadanie");
         btnAdd.setOnAction(e -> {
             if (!txtTitle.getText().isEmpty() && !txtDescription.getText().isEmpty()) {
                 Task newTask = new Task();
                 newTask.setTitle(txtTitle.getText());
                 newTask.setDescription(txtDescription.getText());
+                if (currentProdukt.get() != null) {
+                    newTask.setProdukt(currentProdukt.get());
+                }
 
                 taskService.createTask(newTask);
 
                 txtTitle.clear();
                 txtDescription.clear();
+                currentProdukt.set(null);
                 odswiezListe.run();
             }
         });
@@ -223,22 +253,31 @@ public class JavaFxApp extends Application {
             }
         });
 
+        Button btnDuplicate = new Button("Duplikuj wybrane zadanie");
+        btnDuplicate.setOnAction(e -> {
+            Task selectedTask = taskListView.getSelectionModel().getSelectedItem();
+            if (selectedTask != null) {
+                Task clonedTask = selectedTask.clone();
+                taskService.createTask(clonedTask);
+                odswiezListe.run();
+            }
+        });
+
         Button btnBack = new Button("Wyloguj");
         btnBack.setOnAction(e -> primaryStage.setScene(createLoginScene()));
 
         HBox buttonsLayout = new HBox(15);
         buttonsLayout.setAlignment(Pos.CENTER);
-        buttonsLayout.getChildren().addAll(btnAdd, btnDelete, btnBack);
+        buttonsLayout.getChildren().addAll(btnAdd, btnDelete, btnDuplicate, btnBack);
 
         VBox layout = new VBox(15);
         layout.setAlignment(Pos.CENTER);
         layout.setStyle("-fx-padding: 0 20 0 20;");
 
-        layout.getChildren().addAll(titleLabel, taskListView, txtTitle, txtDescription, buttonsLayout);
+        layout.getChildren().addAll(titleLabel, taskListView, builderLayout, txtTitle, txtDescription, buttonsLayout);
 
-        return new Scene(layout, 500, 450);
+        return new Scene(layout, 600, 450);
     }
-
 
     private Scene createTailorScene() {
         TaskManagementService taskService = springContext.getBean(TaskManagementService.class);
@@ -256,7 +295,11 @@ public class JavaFxApp extends Application {
                 if (empty || task == null) {
                     setText(null);
                 } else {
-                    setText("Zadanie #" + task.getId() + " | " + task.getTitle() + " | Status: " + task.getStatus());
+                    String prodInfo = (task.getProdukt() != null)
+                            ? " | Szczegóły: " + task.getProdukt().toString().replace("\n", " | ")
+                            : "";
+                    setText("Zadanie #" + task.getId() + " | " + task.getTitle() + " | Status: " + task.getStatus()
+                            + prodInfo);
                 }
             }
         });
@@ -272,8 +315,25 @@ public class JavaFxApp extends Application {
         btnAccept.setOnAction(e -> {
             Task selectedTask = taskListView.getSelectionModel().getSelectedItem();
             if (selectedTask != null) {
-                taskService.acceptTask(selectedTask.getId());
-                odswiezListe.run();
+                try {
+                    taskService.acceptTask(selectedTask.getId());
+                    odswiezListe.run();
+                } catch (IllegalStateException ex) {
+                    System.out.println("Nie mozna przyjac: " + ex.getMessage());
+                }
+            }
+        });
+
+        Button btnComplete = new Button("Zakończ zadanie");
+        btnComplete.setOnAction(e -> {
+            Task selectedTask = taskListView.getSelectionModel().getSelectedItem();
+            if (selectedTask != null) {
+                try {
+                    taskService.completeTask(selectedTask.getId());
+                    odswiezListe.run();
+                } catch (IllegalStateException ex) {
+                    System.out.println("Nie mozna zakonczyc: " + ex.getMessage());
+                }
             }
         });
 
@@ -282,7 +342,7 @@ public class JavaFxApp extends Application {
 
         HBox buttonsLayout = new HBox(15);
         buttonsLayout.setAlignment(Pos.CENTER);
-        buttonsLayout.getChildren().addAll(btnAccept, btnBack);
+        buttonsLayout.getChildren().addAll(btnAccept, btnComplete, btnBack);
 
         VBox layout = new VBox(15);
         layout.setAlignment(Pos.CENTER);
@@ -290,7 +350,6 @@ public class JavaFxApp extends Application {
 
         return new Scene(layout, 500, 400);
     }
-
 
     @Override
     public void stop() throws Exception {
