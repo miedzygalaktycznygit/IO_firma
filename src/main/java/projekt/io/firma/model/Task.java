@@ -1,6 +1,7 @@
 package projekt.io.firma.model;
 
 import jakarta.persistence.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import projekt.io.firma.model.state.*;
@@ -32,6 +33,7 @@ public class Task implements Cloneable {
 
     @Transient
     @EqualsAndHashCode.Exclude
+    @JsonIgnore
     private TaskState state;
 
     @PostLoad

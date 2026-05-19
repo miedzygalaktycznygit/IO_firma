@@ -4,36 +4,35 @@ import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
+import javafx.scene.control.*;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Font;
 import javafx.stage.Stage;
-import org.springframework.boot.builder.SpringApplicationBuilder;
-import org.springframework.context.ConfigurableApplicationContext;
-import javafx.scene.control.ListView;
-import javafx.scene.layout.HBox;
-import projekt.io.firma.model.Task;
-import projekt.io.firma.service.TaskManagementService;
-import javafx.scene.control.TextField;
-import javafx.scene.control.ComboBox;
-import projekt.io.firma.model.Employee;
+import projekt.io.firma.client.ApiClient;
+import projekt.io.firma.dto.CreateEmployeeRequest;
+import projekt.io.firma.dto.EmployeeDto;
 import projekt.io.firma.model.Role;
-import projekt.io.firma.model.builder.*;
+import projekt.io.firma.model.Task;
+import projekt.io.firma.model.builder.KierownikProdukcji;
+import projekt.io.firma.model.builder.Produkt;
+import projekt.io.firma.model.builder.ProduktBuilder;
+import projekt.io.firma.model.builder.ProjektGraficzny;
+
+import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class JavaFxApp extends Application {
 
-    private ConfigurableApplicationContext springContext;
+    private static final String DEFAULT_BASE_URL = "http://localhost:8080";
+
+    private final ApiClient apiClient = new ApiClient(DEFAULT_BASE_URL);
+
     private Stage primaryStage;
+    private EmployeeDto currentUser;
 
     @Override
-    public void init() throws Exception {
-        springContext = new SpringApplicationBuilder(FirmaApplication.class).run();
-    }
-
-    @Override
-    public void start(Stage stage) throws Exception {
+    public void start(Stage stage) {
         this.primaryStage = stage;
         stage.setTitle("Firma Krawiecka IO - Panel Główny");
         stage.setScene(createLoginScene());
@@ -41,36 +40,63 @@ public class JavaFxApp extends Application {
     }
 
     private Scene createLoginScene() {
-        Label titleLabel = new Label("Wybierz swój profil:");
+        Label titleLabel = new Label("Logowanie");
         titleLabel.setFont(new Font("Arial", 20));
 
-        Button btnAdmin = new Button("Zaloguj jako Administrator");
-        Button btnDesigner = new Button("Zaloguj jako Projektant");
-        Button btnTailor = new Button("Zaloguj jako Krawiec");
+        TextField loginField = new TextField();
+        loginField.setPromptText("Login...");
 
-        btnAdmin.setPrefWidth(200);
-        btnDesigner.setPrefWidth(200);
-        btnTailor.setPrefWidth(200);
+        PasswordField passwordField = new PasswordField();
+        passwordField.setPromptText("Hasło...");
 
-        btnAdmin.setOnAction(e -> primaryStage.setScene(createAdminScene()));
-        btnDesigner.setOnAction(e -> primaryStage.setScene(createDesignerScene()));
-        btnTailor.setOnAction(e -> primaryStage.setScene(createTailorScene()));
+        Label statusLabel = new Label();
 
-        VBox layout = new VBox(15);
+        Button btnLogin = new Button("Zaloguj");
+        btnLogin.setOnAction(e -> {
+            String login = loginField.getText();
+            String password = passwordField.getText();
+            if (login.isBlank() || password.isBlank()) {
+                statusLabel.setText("Podaj login i hasło.");
+                return;
+            }
+
+            try {
+                EmployeeDto employee = apiClient.login(login, password);
+                if (employee == null) {
+                    statusLabel.setText("Niepoprawne dane logowania.");
+                    return;
+                }
+                currentUser = employee;
+                switch (employee.role()) {
+                    case ADMINISTRATOR -> primaryStage.setScene(createAdminScene());
+                    case PROJEKTANT -> primaryStage.setScene(createDesignerScene());
+                    case KRAWIEC -> primaryStage.setScene(createTailorScene());
+                }
+            } catch (Exception ex) {
+                statusLabel.setText("Błąd połączenia z serwerem.");
+            }
+        });
+
+        VBox layout = new VBox(12);
         layout.setAlignment(Pos.CENTER);
-        layout.getChildren().addAll(titleLabel, btnAdmin, btnDesigner, btnTailor);
+        layout.getChildren().addAll(titleLabel, loginField, passwordField, btnLogin, statusLabel);
 
-        return new Scene(layout, 500, 400);
+        return new Scene(layout, 400, 300);
     }
 
     private Scene createAdminScene() {
-        TaskManagementService taskService = springContext.getBean(TaskManagementService.class);
-
         Label titleLabel = new Label("Panel Administratora");
         titleLabel.setFont(new Font("Arial", 18));
 
-        TextField txtImię = new TextField();
-        txtImię.setPromptText("Imię...");
+        TextField txtLogin = new TextField();
+        txtLogin.setPromptText("Login...");
+
+        PasswordField txtPassword = new PasswordField();
+        txtPassword.setPromptText("Hasło...");
+
+        TextField txtImie = new TextField();
+        txtImie.setPromptText("Imię...");
+
         TextField txtNazwisko = new TextField();
         txtNazwisko.setPromptText("Nazwisko...");
 
@@ -78,15 +104,15 @@ public class JavaFxApp extends Application {
         roleBox.getItems().addAll(Role.values());
         roleBox.setPromptText("Wybierz rolę...");
 
-        Button btnZatrudnij = new Button("Zatrudnij");
+        Button btnCreateAccount = new Button("Utwórz konto");
 
         HBox dodawanieBox = new HBox(10);
         dodawanieBox.setAlignment(Pos.CENTER);
-        dodawanieBox.getChildren().addAll(txtImię, txtNazwisko, roleBox, btnZatrudnij);
+        dodawanieBox.getChildren().addAll(txtLogin, txtPassword, txtImie, txtNazwisko, roleBox, btnCreateAccount);
 
         ListView<Task> taskListView = new ListView<>();
-        taskListView.setPrefHeight(120);
-        taskListView.setCellFactory(param -> new javafx.scene.control.ListCell<Task>() {
+        taskListView.setPrefHeight(140);
+        taskListView.setCellFactory(param -> new ListCell<>() {
             @Override
             protected void updateItem(Task task, boolean empty) {
                 super.updateItem(task, empty);
@@ -99,79 +125,104 @@ public class JavaFxApp extends Application {
             }
         });
 
-        ListView<Employee> empListView = new ListView<>();
-        empListView.setPrefHeight(120);
-        empListView.setCellFactory(param -> new javafx.scene.control.ListCell<Employee>() {
+        ListView<EmployeeDto> empListView = new ListView<>();
+        empListView.setPrefHeight(140);
+        empListView.setCellFactory(param -> new ListCell<>() {
             @Override
-            protected void updateItem(Employee emp, boolean empty) {
+            protected void updateItem(EmployeeDto emp, boolean empty) {
                 super.updateItem(emp, empty);
                 if (empty || emp == null) {
                     setText(null);
                 } else {
-                    setText("Pracownik #" + emp.getId() + " | " + emp.getFirstName() + " (" + emp.getRole() + ")");
+                    setText("Pracownik #" + emp.id() + " | " + emp.firstName() + " (" + emp.role() + ")");
                 }
             }
         });
 
         Runnable odswiezDane = () -> {
-            taskListView.getItems().clear();
-            taskListView.getItems().addAll(taskService.getAllTasks());
+            try {
+                List<Task> tasks = apiClient.getTasks();
+                taskListView.getItems().setAll(tasks);
 
-            empListView.getItems().clear();
-            empListView.getItems().addAll(taskService.getAllEmployees());
+                List<EmployeeDto> employees = apiClient.getEmployees();
+                empListView.getItems().setAll(employees);
+            } catch (Exception ex) {
+                taskListView.getItems().clear();
+                empListView.getItems().clear();
+            }
         };
         odswiezDane.run();
 
-        btnZatrudnij.setOnAction(e -> {
-            if (!txtImię.getText().isEmpty() && roleBox.getValue() != null) {
-                Employee emp = new Employee();
-                emp.setFirstName(txtImię.getText());
-                emp.setLastName(txtNazwisko.getText());
-                emp.setRole(roleBox.getValue());
-                taskService.addEmployee(emp);
+        btnCreateAccount.setOnAction(e -> {
+            if (txtLogin.getText().isBlank() || txtPassword.getText().isBlank()
+                    || txtImie.getText().isBlank() || roleBox.getValue() == null) {
+                return;
+            }
 
-                txtImię.clear();
+            try {
+                CreateEmployeeRequest request = new CreateEmployeeRequest(
+                        txtLogin.getText(),
+                        txtPassword.getText(),
+                        txtImie.getText(),
+                        txtNazwisko.getText(),
+                        roleBox.getValue()
+                );
+                apiClient.createEmployee(request);
+
+                txtLogin.clear();
+                txtPassword.clear();
+                txtImie.clear();
                 txtNazwisko.clear();
                 roleBox.setValue(null);
                 odswiezDane.run();
+            } catch (Exception ex) {
+                // ignore for now
             }
         });
 
         Button btnPrzypisz = new Button("Przypisz wybrane zadanie do wybranego krawca");
         btnPrzypisz.setOnAction(e -> {
             Task task = taskListView.getSelectionModel().getSelectedItem();
-            Employee emp = empListView.getSelectionModel().getSelectedItem();
+            EmployeeDto emp = empListView.getSelectionModel().getSelectedItem();
 
             if (task != null && emp != null) {
-                taskService.assignTaskToTailor(task.getId(), emp.getId());
-                odswiezDane.run();
+                try {
+                    apiClient.assignTaskToTailor(task.getId(), emp.id());
+                    odswiezDane.run();
+                } catch (Exception ex) {
+                    // ignore for now
+                }
             }
         });
 
         Button btnBack = new Button("Wyloguj");
-        btnBack.setOnAction(e -> primaryStage.setScene(createLoginScene()));
+        btnBack.setOnAction(e -> {
+            currentUser = null;
+            primaryStage.setScene(createLoginScene());
+        });
 
         VBox layout = new VBox(15);
         layout.setAlignment(Pos.CENTER);
         layout.setStyle("-fx-padding: 0 20 0 20;");
         layout.getChildren().addAll(
                 titleLabel,
-                new Label("--- 1. NOWY PRACOWNIK ---"), dodawanieBox,
+                new Label("--- 1. NOWE KONTO PRACOWNIKA ---"), dodawanieBox,
                 new Label("--- 2. PRZYPISYWANIE ZADAŃ (Zaznacz obiekt w 1 i w 2 liście) ---"),
-                taskListView, empListView, btnPrzypisz, btnBack);
+                taskListView, empListView, btnPrzypisz, btnBack
+        );
 
-        return new Scene(layout, 600, 600);
+        return new Scene(layout, 700, 650);
     }
 
     private Scene createDesignerScene() {
-        TaskManagementService taskService = springContext.getBean(TaskManagementService.class);
-
         Label titleLabel = new Label("Panel Projektanta - Zarządzanie Zadaniami");
         titleLabel.setFont(new Font("Arial", 18));
 
+        Label statusLabel = new Label();
+
         ListView<Task> taskListView = new ListView<>();
         taskListView.setPrefHeight(200);
-        taskListView.setCellFactory(param -> new javafx.scene.control.ListCell<Task>() {
+        taskListView.setCellFactory(param -> new ListCell<>() {
             @Override
             protected void updateItem(Task task, boolean empty) {
                 super.updateItem(task, empty);
@@ -181,15 +232,20 @@ public class JavaFxApp extends Application {
                     String prodInfo = (task.getProdukt() != null)
                             ? " | Szczegóły: " + task.getProdukt().toString().replace("\n", " | ")
                             : "";
-                    setText("Zadanie #" + task.getId() + " | " + task.getTitle() + " | Status: " + task.getStatus()
-                            + prodInfo);
+                    setText("Zadanie #" + task.getId() + " | " + task.getTitle()
+                            + " | Status: " + task.getStatus() + prodInfo);
                 }
             }
         });
 
         Runnable odswiezListe = () -> {
-            taskListView.getItems().clear();
-            taskListView.getItems().addAll(taskService.getAllTasks());
+            try {
+                taskListView.getItems().setAll(apiClient.getTasks());
+                statusLabel.setText("");
+            } catch (Exception ex) {
+                taskListView.getItems().clear();
+                statusLabel.setText("Blad pobierania listy: " + ex.getMessage());
+            }
         };
         odswiezListe.run();
 
@@ -235,12 +291,15 @@ public class JavaFxApp extends Application {
                     newTask.setProdukt(currentProdukt.get());
                 }
 
-                taskService.createTask(newTask);
-
-                txtTitle.clear();
-                txtDescription.clear();
-                currentProdukt.set(null);
-                odswiezListe.run();
+                try {
+                    apiClient.createTask(newTask);
+                    txtTitle.clear();
+                    txtDescription.clear();
+                    currentProdukt.set(null);
+                    odswiezListe.run();
+                } catch (Exception ex) {
+                    statusLabel.setText("Blad dodawania: " + ex.getMessage());
+                }
             }
         });
 
@@ -248,8 +307,12 @@ public class JavaFxApp extends Application {
         btnDelete.setOnAction(e -> {
             Task selectedTask = taskListView.getSelectionModel().getSelectedItem();
             if (selectedTask != null) {
-                taskService.deleteTask(selectedTask.getId());
-                odswiezListe.run();
+                try {
+                    apiClient.deleteTask(selectedTask.getId());
+                    odswiezListe.run();
+                } catch (Exception ex) {
+                    // ignore for now
+                }
             }
         });
 
@@ -258,13 +321,20 @@ public class JavaFxApp extends Application {
             Task selectedTask = taskListView.getSelectionModel().getSelectedItem();
             if (selectedTask != null) {
                 Task clonedTask = selectedTask.clone();
-                taskService.createTask(clonedTask);
-                odswiezListe.run();
+                try {
+                    apiClient.createTask(clonedTask);
+                    odswiezListe.run();
+                } catch (Exception ex) {
+                    // ignore for now
+                }
             }
         });
 
         Button btnBack = new Button("Wyloguj");
-        btnBack.setOnAction(e -> primaryStage.setScene(createLoginScene()));
+        btnBack.setOnAction(e -> {
+            currentUser = null;
+            primaryStage.setScene(createLoginScene());
+        });
 
         HBox buttonsLayout = new HBox(15);
         buttonsLayout.setAlignment(Pos.CENTER);
@@ -274,21 +344,19 @@ public class JavaFxApp extends Application {
         layout.setAlignment(Pos.CENTER);
         layout.setStyle("-fx-padding: 0 20 0 20;");
 
-        layout.getChildren().addAll(titleLabel, taskListView, builderLayout, txtTitle, txtDescription, buttonsLayout);
+        layout.getChildren().addAll(titleLabel, statusLabel, taskListView, builderLayout, txtTitle, txtDescription, buttonsLayout);
 
         return new Scene(layout, 600, 450);
     }
 
     private Scene createTailorScene() {
-        TaskManagementService taskService = springContext.getBean(TaskManagementService.class);
-
         Label titleLabel = new Label("Panel Krawca - Lista Zadań");
         titleLabel.setFont(new Font("Arial", 18));
 
         ListView<Task> taskListView = new ListView<>();
         taskListView.setPrefHeight(250);
 
-        taskListView.setCellFactory(param -> new javafx.scene.control.ListCell<Task>() {
+        taskListView.setCellFactory(param -> new ListCell<>() {
             @Override
             protected void updateItem(Task task, boolean empty) {
                 super.updateItem(task, empty);
@@ -298,15 +366,18 @@ public class JavaFxApp extends Application {
                     String prodInfo = (task.getProdukt() != null)
                             ? " | Szczegóły: " + task.getProdukt().toString().replace("\n", " | ")
                             : "";
-                    setText("Zadanie #" + task.getId() + " | " + task.getTitle() + " | Status: " + task.getStatus()
-                            + prodInfo);
+                    setText("Zadanie #" + task.getId() + " | " + task.getTitle()
+                            + " | Status: " + task.getStatus() + prodInfo);
                 }
             }
         });
 
         Runnable odswiezListe = () -> {
-            taskListView.getItems().clear();
-            taskListView.getItems().addAll(taskService.getAllTasks());
+            try {
+                taskListView.getItems().setAll(apiClient.getTasks());
+            } catch (Exception ex) {
+                taskListView.getItems().clear();
+            }
         };
 
         odswiezListe.run();
@@ -316,10 +387,10 @@ public class JavaFxApp extends Application {
             Task selectedTask = taskListView.getSelectionModel().getSelectedItem();
             if (selectedTask != null) {
                 try {
-                    taskService.acceptTask(selectedTask.getId());
+                    apiClient.acceptTask(selectedTask.getId());
                     odswiezListe.run();
-                } catch (IllegalStateException ex) {
-                    System.out.println("Nie mozna przyjac: " + ex.getMessage());
+                } catch (Exception ex) {
+                    // ignore for now
                 }
             }
         });
@@ -329,16 +400,19 @@ public class JavaFxApp extends Application {
             Task selectedTask = taskListView.getSelectionModel().getSelectedItem();
             if (selectedTask != null) {
                 try {
-                    taskService.completeTask(selectedTask.getId());
+                    apiClient.completeTask(selectedTask.getId());
                     odswiezListe.run();
-                } catch (IllegalStateException ex) {
-                    System.out.println("Nie mozna zakonczyc: " + ex.getMessage());
+                } catch (Exception ex) {
+                    // ignore for now
                 }
             }
         });
 
         Button btnBack = new Button("Wyloguj");
-        btnBack.setOnAction(e -> primaryStage.setScene(createLoginScene()));
+        btnBack.setOnAction(e -> {
+            currentUser = null;
+            primaryStage.setScene(createLoginScene());
+        });
 
         HBox buttonsLayout = new HBox(15);
         buttonsLayout.setAlignment(Pos.CENTER);
@@ -352,8 +426,7 @@ public class JavaFxApp extends Application {
     }
 
     @Override
-    public void stop() throws Exception {
-        springContext.close();
+    public void stop() {
         Platform.exit();
     }
 }

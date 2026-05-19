@@ -4,7 +4,9 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import projekt.io.firma.model.Task;
 import projekt.io.firma.service.TaskManagementService;
-import projekt.io.firma.model.Employee;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import java.util.Set;
 
 
 @RestController
@@ -18,13 +20,13 @@ public class AppController {
     }
 
     @GetMapping("/tasks")
-    public List<Task> getTasks() {
-        return service.getAllTasks();
+    public List<Task> getTasks(Authentication authentication) {
+        return service.getTasksForUser(authentication.getName(), extractRoles(authentication));
     }
 
     @PostMapping("/tasks")
-    public Task createTask(@RequestBody Task task) {
-        return service.createTask(task);
+    public Task createTask(@RequestBody Task task, Authentication authentication) {
+        return service.createTask(task, authentication.getName());
     }
 
     @PutMapping("/tasks/{taskId}/accept")
@@ -32,11 +34,12 @@ public class AppController {
         return service.acceptTask(taskId);
     }
 
-    @PostMapping("/employees")
-    public Employee addEmployee(@RequestBody Employee employee) {
-        return service.addEmployee(employee);
+    @PutMapping("/tasks/{taskId}/complete")
+    public Task completeTask(@PathVariable Long taskId) {
+        return service.completeTask(taskId);
     }
 
+    @PreAuthorize("hasRole('ADMINISTRATOR')")
     @PutMapping("/tasks/{taskId}/assign/{tailorId}")
     public Task assignTaskToTailor(@PathVariable Long taskId, @PathVariable Long tailorId) {
         return service.assignTaskToTailor(taskId, tailorId);
@@ -50,6 +53,12 @@ public class AppController {
     @DeleteMapping("/tasks/{taskId}")
     public void deleteTask(@PathVariable Long taskId) {
         service.deleteTask(taskId);
+    }
+
+    private Set<String> extractRoles(Authentication authentication) {
+        return authentication.getAuthorities().stream()
+                .map(granted -> granted.getAuthority())
+                .collect(java.util.stream.Collectors.toSet());
     }
 
 
