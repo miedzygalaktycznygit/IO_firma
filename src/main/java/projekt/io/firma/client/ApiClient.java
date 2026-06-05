@@ -2,6 +2,7 @@ package projekt.io.firma.client;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import projekt.io.firma.dto.AuthResponse;
 import projekt.io.firma.dto.CreateEmployeeRequest;
 import projekt.io.firma.dto.EmployeeDto;
 import projekt.io.firma.dto.LoginRequest;
@@ -12,8 +13,6 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import java.util.List;
 
 public class ApiClient {
@@ -22,8 +21,7 @@ public class ApiClient {
     private final ObjectMapper objectMapper;
     private final String baseUrl;
 
-    private String login;
-    private String password;
+    private String token;
 
     public ApiClient(String baseUrl) {
         this.httpClient = HttpClient.newHttpClient();
@@ -31,9 +29,8 @@ public class ApiClient {
         this.baseUrl = baseUrl;
     }
 
-    public void setCredentials(String login, String password) {
-        this.login = login;
-        this.password = password;
+    public void setToken(String token) {
+        this.token = token;
     }
 
     public EmployeeDto login(String login, String password) throws IOException, InterruptedException {
@@ -51,9 +48,9 @@ public class ApiClient {
             return null;
         }
 
-        EmployeeDto employee = objectMapper.readValue(response.body(), EmployeeDto.class);
-        setCredentials(login, password);
-        return employee;
+        AuthResponse authResponse = objectMapper.readValue(response.body(), AuthResponse.class);
+        setToken(authResponse.token());
+        return authResponse.employee();
     }
 
     public List<Task> getTasks() throws IOException, InterruptedException {
@@ -162,10 +159,8 @@ public class ApiClient {
         HttpRequest.Builder builder = HttpRequest.newBuilder()
                 .uri(URI.create(baseUrl + path));
 
-        if (login != null && password != null) {
-            String token = Base64.getEncoder()
-                    .encodeToString((login + ":" + password).getBytes(StandardCharsets.UTF_8));
-            builder.header("Authorization", "Basic " + token);
+        if (token != null && !token.isBlank()) {
+            builder.header("Authorization", "Bearer " + token);
         }
 
         return builder;

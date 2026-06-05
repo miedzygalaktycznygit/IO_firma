@@ -1,0 +1,78 @@
+/* Corporate JavaFX theme */
+
+.screen {
+    -fx-background-color: linear-gradient(to bottom right, #f2f5f8, #e6ecf1);
+    -fx-padding: 24;
+    -fx-font-family: "Cambria";
+    -fx-text-fill: #1c2430;
+}
+
+.title {
+    -fx-font-size: 20px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #1b2a3a;
+}
+
+.section-title {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #324559;
+}
+
+.card {
+    -fx-background-color: #ffffff;
+    -fx-background-radius: 12;
+    -fx-padding: 16;
+    -fx-spacing: 10;
+    -fx-effect: dropshadow(three-pass-box, rgba(20, 28, 40, 0.15), 18, 0, 0, 6);
+}
+
+.input {
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-border-color: #cbd5df;
+    -fx-background-color: #fbfcfe;
+    -fx-padding: 8 10 8 10;
+}
+
+.list-view {
+    -fx-background-radius: 10;
+    -fx-border-radius: 10;
+    -fx-border-color: #d3dce6;
+}
+
+.list-cell {
+    -fx-padding: 8 10 8 10;
+}
+
+.primary-button {
+    -fx-background-color: #1e4f7a;
+    -fx-text-fill: #ffffff;
+    -fx-background-radius: 8;
+    -fx-padding: 8 14 8 14;
+}
+
+.secondary-button {
+    -fx-background-color: #e0e7ef;
+    -fx-text-fill: #1f2d3d;
+    -fx-background-radius: 8;
+    -fx-padding: 8 14 8 14;
+}
+
+.danger-button {
+    -fx-background-color: #b23b3b;
+    -fx-text-fill: #ffffff;
+    -fx-background-radius: 8;
+    -fx-padding: 8 14 8 14;
+}
+
+.ghost-button {
+    -fx-background-color: transparent;
+    -fx-text-fill: #1e4f7a;
+    -fx-padding: 8 10 8 10;
+}
+
+.status {
+    -fx-text-fill: #b23b3b;
+    -fx-font-size: 12px;
+}
