@@ -52,7 +52,7 @@ class ProduktBuilderTest {
 
         ProduktBuilder builder = new ProduktBuilder("Koszulka")
                 .setProjekt(projekt)
-                .setTechnikaWykonania("Gładkie"); // domyślne lub jawnie "Gładkie"
+                .setTechnikaWykonania("Gładkie");
 
         IllegalStateException exception = assertThrows(IllegalStateException.class, builder::build);
         assertEquals("Dla produktu z projektem graficznym należy określić technikę wykonania (np. Nadruk/Haft)", exception.getMessage());
@@ -80,7 +80,7 @@ class ProduktBuilderTest {
                .setCena(120.0)
                .setRozmiar("XL")
                .dodajDodatek("Guziki")
-               .reset(); // Przywraca domyślne (kolekcja, rozmiar, kolor, cena itp.)
+               .reset();
 
         Produkt produkt = builder.build();
         assertEquals("Sweter", produkt.getNazwa());
@@ -100,8 +100,7 @@ class ProduktBuilderTest {
         assertEquals("Bluza", bluza.getNazwa());
     }
 
-    // Pomocnicza metoda testująca, by sprawdzić co dokładnie produkuje Kierownik
-    private Produkt kierownikprzygotujBluezeBasic(KierownikProdukcji kierownik) {
+    private Produkt kierownikPrzygotujBluezeBasic(KierownikProdukcji kierownik) {
         return kierownik.przygotujBluezeBasic();
     }
 

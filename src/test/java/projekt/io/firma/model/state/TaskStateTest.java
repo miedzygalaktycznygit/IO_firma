@@ -16,7 +16,7 @@ class TaskStateTest {
         task.setTitle("Testowe zadanie");
         task.setDescription("Opis testowy");
         task.setStatus("NOWE");
-        task.init(); // Inicjalizuje stan na podstawie statusu
+        task.init();
     }
 
     @Test
@@ -37,14 +37,13 @@ class TaskStateTest {
     void testCompleteFromNewThrowsException() {
         IllegalStateException exception = assertThrows(IllegalStateException.class, () -> task.complete());
         assertEquals("Nie mozna zakonczyc nowego zadania przed jego rozpoczeciem.", exception.getMessage());
-        // Stan nie powinien się zmienić
         assertTrue(task.getState() instanceof NewState);
         assertEquals("NOWE", task.getStatus());
     }
 
     @Test
     void testAcceptFromInProgressThrowsException() {
-        task.accept(); // NOWE -> W_REALIZACJI
+        task.accept();
         
         IllegalStateException exception = assertThrows(IllegalStateException.class, () -> task.accept());
         assertEquals("Zadanie jest juz w realizacji.", exception.getMessage());
@@ -53,8 +52,8 @@ class TaskStateTest {
 
     @Test
     void testCompleteFromInProgressToCompleted() {
-        task.accept(); // NOWE -> W_REALIZACJI
-        task.complete(); // W_REALIZACJI -> ZAKONCZONE
+        task.accept();
+        task.complete();
 
         assertTrue(task.getState() instanceof CompletedState);
         assertEquals("ZAKONCZONE", task.getStatus());
